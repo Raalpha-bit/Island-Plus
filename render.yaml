@@ -1,0 +1,33 @@
+services:
+  # Backend - NestJS
+  - type: web
+    name: island-plus-backend
+    env: node
+    buildCommand: cd backend && npm install && npx prisma generate && npm run build
+    startCommand: cd backend && npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        value: file:./prod.db # For prototype. Render disk required for persistence.
+    disk:
+      name: sqlite-data
+      mountPath: /opt/render/project/src/backend/
+      sizeGB: 1
+
+  # Frontend - Next.js
+  - type: web
+    name: island-plus-frontend
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: island-plus-backend
+          envVarKey: RENDER_EXTERNAL_URL

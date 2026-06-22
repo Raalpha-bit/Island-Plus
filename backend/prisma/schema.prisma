@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  username      String   @unique
+  passwordHash  String
+  role          String   @default("MEMBER") // "MEMBER", "CREATOR", "ADMIN"
+  dob           DateTime
+  walletBalance Float    @default(0.0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  creatorProfile CreatorProfile?
+  subscriptions  Subscription[]  @relation("Subscriber")
+  messagesSent     Message[]       @relation("Sender")
+  messagesReceived Message[]       @relation("Receiver")
+}
+
+model CreatorProfile {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName       String
+  bio               String?
+  avatar            String?
+  coverImage        String?
+  isLive            Boolean  @default(false)
+  subscriptionPrice Float    @default(9.99)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  subscribers Subscription[] @relation("Creator")
+  content     Content[]
+}
+
+model Subscription {
+  id           String             @id @default(uuid())
+  subscriberId String
+  creatorId    String
+  subscriber   User               @relation("Subscriber", fields: [subscriberId], references: [id])
+  creator      CreatorProfile     @relation("Creator", fields: [creatorId], references: [id])
+  tier         String             @default("BRONZE") // "BRONZE", "SILVER", "GOLD", "BLACK"
+  status       String             @default("ACTIVE") // "ACTIVE", "EXPIRED", "CANCELLED"
+  expiresAt    DateTime
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@unique([subscriberId, creatorId])
+}
+
+model Content {
+  id               String         @id @default(uuid())
+  creatorId        String
+  creator          CreatorProfile @relation(fields: [creatorId], references: [id])
+  title            String
+  url              String
+  type             String         // "IMAGE", "VIDEO"
+  visibility       String         @default("PUBLIC") // "PUBLIC", "SUBSCRIBERS_ONLY", "TIER_SPECIFIC"
+  minimumTier      String?        // "BRONZE", "SILVER", "GOLD", "BLACK"
+  likesCount       Int            @default(0)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  sender     User     @relation("Sender", fields: [senderId], references: [id])
+  receiver   User     @relation("Receiver", fields: [receiverId], references: [id])
+  text       String?
+  mediaUrl   String?
+  createdAt  DateTime @default(now())
+}
