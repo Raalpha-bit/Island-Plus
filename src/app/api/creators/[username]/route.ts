@@ -69,16 +69,18 @@ export async function GET(
     }
 
     // Format to match old schema + details
+    const profile = Array.isArray(creator.profiles) ? creator.profiles[0] : creator.profiles;
+    
     const formatted = {
       id: creator.id,
-      username: creator.profiles.username,
-      displayName: creator.profiles.display_name,
-      avatar: creator.profiles.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop',
+      username: profile.username,
+      displayName: profile.display_name,
+      avatar: profile.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop',
       cover: creator.cover_url || 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&h=400&fit=crop',
-      bio: creator.profiles.bio || '',
-      verified: creator.profiles.is_verified || false,
+      bio: profile.bio || '',
+      verified: profile.is_verified || false,
       category: creator.category,
-      country: creator.profiles.country || '',
+      country: profile.country || '',
       followers: creator.total_followers,
       subscribers: creator.total_subscribers,
       posts: creator.total_posts,
@@ -89,10 +91,10 @@ export async function GET(
       isSubscribed,
       subscriptionTier,
       creatorProfile: {
-        displayName: creator.profiles.display_name,
-        avatar: creator.profiles.avatar_url,
+        displayName: profile.display_name,
+        avatar: profile.avatar_url,
         coverImage: creator.cover_url,
-        bio: creator.profiles.bio,
+        bio: profile.bio,
         isLive: creator.is_live,
         _count: {
           subscribers: creator.total_subscribers,
