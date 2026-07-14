@@ -73,7 +73,10 @@ export async function GET(request: Request) {
 
     for (const msg of chats || []) {
       const isSender = msg.sender_id === user.id;
-      const contact = isSender ? msg.receiver : msg.sender;
+      const contactData = isSender ? msg.receiver : msg.sender;
+      if (!contactData) continue;
+
+      const contact = Array.isArray(contactData) ? contactData[0] : contactData;
       if (!contact) continue;
 
       if (!conversationsMap.has(contact.id)) {
