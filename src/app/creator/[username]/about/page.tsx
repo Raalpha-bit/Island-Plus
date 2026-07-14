@@ -1,13 +1,46 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { creators } from '@/lib/mock/creators';
+import { Loader2 } from 'lucide-react';
+import { Api } from '@/lib/api';
 import SubscriptionPlans from '@/components/creator/SubscriptionPlans';
 
 export default function CreatorAboutPage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = use(params);
-  const creator = creators.find((c) => c.username === username) || creators[0];
+  const [creator, setCreator] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadCreator() {
+      try {
+        setIsLoading(true);
+        const data = await Api.get<any>(`/creators/${username}`);
+        setCreator(data);
+      } catch (err) {
+        console.error('Failed to load creator info', err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadCreator();
+  }, [username]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[40vh] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-purple-neon" />
+      </div>
+    );
+  }
+
+  if (!creator) {
+    return (
+      <div className="text-center py-20 text-gray-400">
+        Creator not found.
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -20,7 +53,7 @@ export default function CreatorAboutPage({ params }: { params: Promise<{ usernam
       <section className="glass-card rounded-2xl p-8 max-w-4xl">
         <h2 className="text-2xl font-bold text-white mb-4">About {creator.displayName}</h2>
         <div className="prose prose-invert max-w-none text-gray-300">
-          <p>{creator.bio}</p>
+          <p>{creator.bio || 'No bio provided yet.'}</p>
           <p className="mt-4">
             Welcome to my exclusive Island+ community! By subscribing, you get access to my private life, unseen content, behind-the-scenes footage, and 1-on-1 interaction.
           </p>

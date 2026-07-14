@@ -1,22 +1,69 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { creators } from '@/lib/mock/creators';
+import { Loader2 } from 'lucide-react';
+import { Api } from '@/lib/api';
 import ContentGrid from '@/components/content/ContentGrid';
 import LockedContent from '@/components/creator/LockedContent';
 
 export default function CreatorHomePage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = use(params);
-  const creator = creators.find((c) => c.username === username) || creators[0];
+  const [creator, setCreator] = useState<any>(null);
+  const [posts, setPosts] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Mock content items for home tab
-  const homeItems = [
-    { id: '1', type: 'image' as const, url: creator.previewImages[0], locked: false, likes: 1200, comments: 45 },
-    { id: '2', type: 'image' as const, url: creator.previewImages[1], locked: false, likes: 850, comments: 32 },
-    { id: '3', type: 'video' as const, url: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=500&h=500&fit=crop', locked: true, likes: 2300, comments: 120 },
-    { id: '4', type: 'image' as const, url: 'https://images.unsplash.com/photo-1492633423870-43d1cd2775eb?w=500&h=500&fit=crop', locked: true, likes: 1500, comments: 88 },
-  ];
+  useEffect(() => {
+    async function loadCreatorAndPosts() {
+      try {
+        setIsLoading(true);
+        // 1. Get creator profile
+        const creatorData = await Api.get<any>(`/creators/${username}`);
+        setCreator(creatorData);
+
+        // 2. Fetch posts of creator
+        const postsData = await Api.get<any[]>(`/posts?creatorId=${creatorData.id}`);
+        setPosts(postsData);
+      } catch (err) {
+        console.error('Failed to load creator feed', err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadCreatorAndPosts();
+  }, [username]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[40vh] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-purple-neon" />
+      </div>
+    );
+  }
+
+  if (!creator) {
+    return (
+      <div className="text-center py-20 text-gray-400">
+        Creator not found.
+      </div>
+    );
+  }
+
+  // Format posts to fit ContentGrid item structure
+  const gridItems = posts.map((post) => {
+    const hasMedia = post.media && post.media.length > 0;
+    const mediaItem = hasMedia ? post.media[0] : null;
+
+    return {
+      id: post.id,
+      type: (mediaItem?.type || 'image') as 'image' | 'video',
+      url: mediaItem?.url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500', // fallback placeholder
+      thumbnail: mediaItem?.thumbnail || mediaItem?.url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500',
+      locked: post.isLocked,
+      likes: post.likesCount || 0,
+      comments: post.commentsCount || 0,
+    };
+  });
 
   return (
     <motion.div
@@ -27,12 +74,18 @@ export default function CreatorHomePage({ params }: { params: Promise<{ username
     >
       <div className="mb-8">
         <h2 className="text-xl font-bold text-white mb-4">Latest Content</h2>
-        <ContentGrid items={homeItems} isSubscribed={false} />
+        {gridItems.length === 0 ? (
+          <p className="text-gray-400 text-sm">No content published yet.</p>
+        ) : (
+          <ContentGrid items={gridItems} isSubscribed={creator.isSubscribed} />
+        )}
       </div>
 
-      <div className="mt-12">
-        <LockedContent creator={creator} />
-      </div>
+      {!creator.isSubscribed && (
+        <div className="mt-12">
+          <LockedContent creator={creator} />
+        </div>
+      )}
     </motion.div>
   );
 }

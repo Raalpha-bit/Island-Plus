@@ -21,7 +21,14 @@ export default function LoginPage() {
     if (!email || !password) { setError('Please fill in all fields.'); return; }
     try {
       await login(email, password);
-      router.push('/dashboard/feed');
+      const currentUser = useAuthStore.getState().user;
+      if (currentUser?.role === 'creator') {
+        router.push('/creator-dashboard/overview');
+      } else if (currentUser?.role === 'admin') {
+        router.push('/admin/dashboard');
+      } else {
+        router.push('/dashboard/feed');
+      }
     } catch {
       setError('Invalid credentials. Please try again.');
     }

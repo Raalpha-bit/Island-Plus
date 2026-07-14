@@ -1,16 +1,42 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CheckCircle, Share2, MoreHorizontal, Users, Radio, Lock } from 'lucide-react';
-import { creators } from '@/lib/mock/creators';
+import { CheckCircle, Share2, MoreHorizontal, Users, Radio, Lock, Loader2 } from 'lucide-react';
+import { Api } from '@/lib/api';
 
 export default function CreatorHeader({ username }: { username: string }) {
   const pathname = usePathname();
-  const creator = creators.find(c => c.username === username) || creators[0]; // fallback for demo
+  const [creator, setCreator] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
+
+  useEffect(() => {
+    async function loadCreator() {
+      try {
+        const data = await Api.get<any>(`/creators/${username}`);
+        setCreator({
+          username: data.username || username,
+          displayName: data.creatorProfile?.displayName || username,
+          avatar: data.creatorProfile?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop&crop=face',
+          cover: data.creatorProfile?.coverImage || 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&h=400&fit=crop',
+          bio: data.creatorProfile?.bio || 'No bio yet.',
+          verified: false,
+          followers: data.creatorProfile?._count?.subscribers || 0,
+          posts: data.creatorProfile?.content?.length || 0,
+          isLive: data.creatorProfile?.isLive || false,
+          isOnline: true,
+        });
+      } catch (err) {
+        console.error('Failed to load creator profile');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadCreator();
+  }, [username]);
 
   const tabs = [
     { label: 'Home', href: `/creator/${username}/home` },
@@ -20,6 +46,14 @@ export default function CreatorHeader({ username }: { username: string }) {
     { label: 'Live', href: `/creator/${username}/live`, locked: true },
     { label: 'About', href: `/creator/${username}/about` },
   ];
+
+  if (isLoading) {
+    return <div className="h-96 flex items-center justify-center bg-black-deep/50"><Loader2 className="w-8 h-8 animate-spin text-purple-neon" /></div>;
+  }
+
+  if (!creator) {
+    return <div className="h-96 flex items-center justify-center text-white">Creator not found.</div>;
+  }
 
   return (
     <div className="relative">

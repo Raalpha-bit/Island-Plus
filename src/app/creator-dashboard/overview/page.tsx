@@ -1,25 +1,44 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Users, DollarSign, Eye, TrendingUp, ArrowUpRight } from 'lucide-react';
+import { Users, DollarSign, Eye, Heart, ArrowUpRight, Loader2, Bell } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Api } from '@/lib/api';
 
 export default function OverviewPage() {
-  const data = [
-    { name: 'Mon', revenue: 400, views: 2400 },
-    { name: 'Tue', revenue: 300, views: 1398 },
-    { name: 'Wed', revenue: 550, views: 9800 },
-    { name: 'Thu', revenue: 450, views: 3908 },
-    { name: 'Fri', revenue: 600, views: 4800 },
-    { name: 'Sat', revenue: 800, views: 3800 },
-    { name: 'Sun', revenue: 950, views: 4300 },
-  ];
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    async function loadAnalytics() {
+      try {
+        setIsLoading(true);
+        const data = await Api.get<any>('/creator/analytics');
+        setAnalytics(data);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load analytics.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadAnalytics();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-purple-neon" />
+      </div>
+    );
+  }
 
   const stats = [
-    { title: 'Total Revenue', value: '$4,050.00', icon: DollarSign, trend: '+12.5%', color: 'from-purple-royal to-purple-neon' },
-    { title: 'Active Subscribers', value: '1,245', icon: Users, trend: '+5.2%', color: 'from-blue-500 to-blue-400' },
-    { title: 'Profile Views', value: '45.2K', icon: Eye, trend: '+18.1%', color: 'from-pink-500 to-pink-400' },
-    { title: 'Conversion Rate', value: '3.4%', icon: TrendingUp, trend: '+1.2%', color: 'from-green-500 to-green-400' },
+    { title: 'Total Revenue', value: `$${(analytics?.stats?.totalEarnings || 0).toFixed(2)}`, icon: DollarSign, trend: '+12.5%', color: 'from-purple-royal to-purple-neon' },
+    { title: 'Active Subscribers', value: (analytics?.stats?.activeSubscribers || 0).toLocaleString(), icon: Users, trend: '+5.2%', color: 'from-blue-500 to-blue-400' },
+    { title: 'Profile Views', value: (analytics?.stats?.profileViews || 0).toLocaleString(), icon: Eye, trend: '+18.1%', color: 'from-pink-500 to-pink-400' },
+    { title: 'Total Likes', value: (analytics?.stats?.likes || 0).toLocaleString(), icon: Heart, trend: '+4.3%', color: 'from-green-500 to-green-400' },
   ];
 
   return (
@@ -32,6 +51,12 @@ export default function OverviewPage() {
         <h1 className="text-2xl font-bold text-white mb-2 font-[family-name:var(--font-display)]">Dashboard Overview</h1>
         <p className="text-sm text-gray-400">Welcome back. Here's what's happening with your account today.</p>
       </div>
+
+      {error && (
+        <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-400">
+          {error}
+        </div>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -59,7 +84,7 @@ export default function OverviewPage() {
           <h3 className="text-lg font-bold text-white mb-6">Revenue & Views</h3>
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+              <LineChart data={analytics?.chartData || []} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
                 <XAxis dataKey="name" stroke="#6b7280" tick={{ fill: '#6b7280', fontSize: 12 }} axisLine={false} tickLine={false} />
                 <YAxis yAxisId="left" stroke="#6b7280" tick={{ fill: '#6b7280', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(val) => `$${val}`} />
@@ -77,23 +102,27 @@ export default function OverviewPage() {
 
         <div className="glass-card rounded-2xl p-6">
           <h3 className="text-lg font-bold text-white mb-6">Recent Activity</h3>
-          <div className="space-y-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-purple-royal/20 flex items-center justify-center shrink-0">
-                  <DollarSign className="w-4 h-4 text-purple-neon" />
+          
+          {(!analytics?.notifications || analytics.notifications.length === 0) ? (
+            <div className="text-center py-12 text-gray-500 text-sm">
+              No recent activity.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {analytics.notifications.map((notif: any) => (
+                <div key={notif.id} className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-purple-royal/20 flex items-center justify-center shrink-0 mt-0.5">
+                    <Bell className="w-4 h-4 text-purple-neon" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">{notif.title}</p>
+                    <p className="text-xs text-gray-400 leading-snug mt-0.5">{notif.body}</p>
+                    <p className="text-[10px] text-gray-600 mt-1">{new Date(notif.created_at).toLocaleTimeString()}</p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-white truncate">New subscriber (Gold)</p>
-                  <p className="text-xs text-gray-500">2 minutes ago</p>
-                </div>
-                <span className="text-sm font-bold text-green-400">+$19.99</span>
-              </div>
-            ))}
-          </div>
-          <button className="w-full mt-6 py-2 text-sm text-purple-neon hover:text-purple-light transition-colors text-center font-medium">
-            View All Activity
-          </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </motion.div>

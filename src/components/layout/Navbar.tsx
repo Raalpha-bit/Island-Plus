@@ -83,7 +83,7 @@ export default function Navbar() {
                     className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full glass-card text-sm"
                   >
                     <Wallet className="w-4 h-4 text-purple-neon" />
-                    <span className="text-white font-medium">${user.walletBalance.toFixed(2)}</span>
+                    <span className="text-white font-medium">${(Number(user.wallet_balance) || 0).toFixed(2)}</span>
                   </Link>
                   {/* Profile Dropdown */}
                   <div className="relative">
@@ -91,7 +91,7 @@ export default function Navbar() {
                       onClick={() => setProfileOpen(!profileOpen)}
                       className="w-9 h-9 rounded-full overflow-hidden ring-2 ring-purple-royal/50 hover:ring-purple-neon transition-all"
                     >
-                      <img src={user.avatar} alt={user.displayName} className="w-full h-full object-cover" />
+                      <img src={user.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'} alt={user.display_name} className="w-full h-full object-cover" />
                     </button>
                     <AnimatePresence>
                       {profileOpen && (
@@ -102,7 +102,7 @@ export default function Navbar() {
                           className="absolute right-0 top-12 w-56 glass-strong rounded-xl overflow-hidden shadow-xl shadow-black/50"
                         >
                           <div className="p-3 border-b border-white/5">
-                            <p className="text-sm font-semibold text-white">{user.displayName}</p>
+                            <p className="text-sm font-semibold text-white">{user.display_name}</p>
                             <p className="text-xs text-gray-400">@{user.username}</p>
                           </div>
                           <div className="p-1.5">

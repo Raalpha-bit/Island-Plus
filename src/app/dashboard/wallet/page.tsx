@@ -1,18 +1,52 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Wallet, ArrowUpRight, ArrowDownLeft, CreditCard, History, Plus } from 'lucide-react';
+import { Wallet, ArrowUpRight, ArrowDownLeft, CreditCard, History, Plus, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store/useAuthStore';
+import { Api } from '@/lib/api';
 
 export default function WalletPage() {
   const { user } = useAuthStore();
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const transactions = [
-    { id: '1', type: 'subscription', amount: -19.99, date: 'Today', description: 'Gold Tier - @islandqueen' },
-    { id: '2', type: 'deposit', amount: 50.00, date: 'Yesterday', description: 'Added funds via Card ending in 4242' },
-    { id: '3', type: 'tip', amount: -5.00, date: 'Oct 12', description: 'Tip to @fitking_marcus' },
-    { id: '4', type: 'content', amount: -12.50, date: 'Oct 10', description: 'Unlocked PPV - @lens_sofia' },
-  ];
+  useEffect(() => {
+    async function loadTransactions() {
+      try {
+        setIsLoading(true);
+        const data = await Api.get<any[]>('/transactions');
+        setTransactions(data);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load transaction history.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadTransactions();
+  }, []);
+
+  // Calculate spent this month
+  const spentThisMonth = transactions
+    .filter(tx => {
+      if (tx.user_id !== user?.id) return false; // Received tips/payouts are not spent
+      const txDate = new Date(tx.created_at);
+      const now = new Date();
+      return txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
+    })
+    .reduce((sum, tx) => sum + Number(tx.amount), 0);
+
+  // Count active subscriptions
+  const activeSubsCount = transactions.filter(tx => tx.type === 'subscription' && tx.status === 'completed').length;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-purple-neon" />
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -25,6 +59,12 @@ export default function WalletPage() {
         <p className="text-sm text-gray-400">Manage your balance and transactions.</p>
       </div>
 
+      {error && (
+        <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-400">
+          {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {/* Balance Card */}
         <div className="md:col-span-2 gradient-purple rounded-2xl p-8 relative overflow-hidden glow-purple">
@@ -34,13 +74,13 @@ export default function WalletPage() {
           <div className="relative z-10">
             <h3 className="text-sm font-medium text-white/80 mb-2">Available Balance</h3>
             <div className="text-5xl font-bold text-white mb-8 font-[family-name:var(--font-display)]">
-              ${user?.walletBalance.toFixed(2) || '0.00'}
+              ${(Number(user?.wallet_balance) || 0).toFixed(2)}
             </div>
             <div className="flex gap-4">
-              <button className="flex items-center gap-2 px-6 py-3 bg-white text-purple-royal rounded-xl font-bold hover:bg-gray-100 transition-colors">
+              <button className="flex items-center gap-2 px-6 py-3 bg-white text-purple-royal rounded-xl font-bold hover:bg-gray-100 transition-colors cursor-pointer">
                 <Plus className="w-5 h-5" /> Add Funds
               </button>
-              <button className="flex items-center gap-2 px-6 py-3 bg-black/20 text-white rounded-xl font-bold hover:bg-black/30 transition-colors backdrop-blur-md">
+              <button className="flex items-center gap-2 px-6 py-3 bg-black/20 text-white rounded-xl font-bold hover:bg-black/30 transition-colors backdrop-blur-md cursor-pointer">
                 <CreditCard className="w-5 h-5" /> Manage Cards
               </button>
             </div>
@@ -52,7 +92,7 @@ export default function WalletPage() {
           <div className="glass-card rounded-2xl p-5 flex items-center justify-between">
             <div>
               <p className="text-xs text-gray-400 mb-1">Spent this month</p>
-              <p className="text-xl font-bold text-white">$142.50</p>
+              <p className="text-xl font-bold text-white">${spentThisMonth.toFixed(2)}</p>
             </div>
             <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
               <ArrowUpRight className="w-5 h-5 text-red-500" />
@@ -60,8 +100,8 @@ export default function WalletPage() {
           </div>
           <div className="glass-card rounded-2xl p-5 flex items-center justify-between">
             <div>
-              <p className="text-xs text-gray-400 mb-1">Active Subscriptions</p>
-              <p className="text-xl font-bold text-white">4</p>
+              <p className="text-xs text-gray-400 mb-1">Total transactions</p>
+              <p className="text-xl font-bold text-white">{transactions.length}</p>
             </div>
             <div className="w-10 h-10 rounded-full bg-purple-royal/20 flex items-center justify-center">
               <History className="w-5 h-5 text-purple-neon" />
@@ -75,30 +115,41 @@ export default function WalletPage() {
         <div className="p-6 border-b border-white/5">
           <h2 className="text-lg font-bold text-white">Recent Transactions</h2>
         </div>
-        <div className="divide-y divide-white/5">
-          {transactions.map((tx) => (
-            <div key={tx.id} className="p-4 sm:px-6 flex items-center justify-between hover:bg-white/5 transition-colors">
-              <div className="flex items-center gap-4">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  tx.amount > 0 ? 'bg-green-500/20' : 'bg-white/10'
-                }`}>
-                  {tx.amount > 0 ? (
-                    <ArrowDownLeft className="w-5 h-5 text-green-500" />
-                  ) : (
-                    <ArrowUpRight className="w-5 h-5 text-white" />
-                  )}
+        
+        {transactions.length === 0 ? (
+          <div className="p-8 text-center text-gray-500 text-sm">
+            No transactions found.
+          </div>
+        ) : (
+          <div className="divide-y divide-white/5">
+            {transactions.map((tx) => {
+              const isOutgoing = tx.user_id === user?.id;
+              const displayAmount = Number(tx.amount);
+              return (
+                <div key={tx.id} className="p-4 sm:px-6 flex items-center justify-between hover:bg-white/5 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      !isOutgoing ? 'bg-green-500/20' : 'bg-white/10'
+                    }`}>
+                      {!isOutgoing ? (
+                        <ArrowDownLeft className="w-5 h-5 text-green-500" />
+                      ) : (
+                        <ArrowUpRight className="w-5 h-5 text-white" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-white">{tx.description || `${tx.type.toUpperCase()} transaction`}</p>
+                      <p className="text-xs text-gray-500">{new Date(tx.created_at).toLocaleString()}</p>
+                    </div>
+                  </div>
+                  <div className={`text-sm font-bold ${!isOutgoing ? 'text-green-500' : 'text-white'}`}>
+                    {!isOutgoing ? '+' : '-'}${displayAmount.toFixed(2)}
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-white">{tx.description}</p>
-                  <p className="text-xs text-gray-500">{tx.date}</p>
-                </div>
-              </div>
-              <div className={`text-sm font-bold ${tx.amount > 0 ? 'text-green-500' : 'text-white'}`}>
-                {tx.amount > 0 ? '+' : ''}{tx.amount.toFixed(2)}
-              </div>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </motion.div>
   );

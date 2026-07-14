@@ -62,7 +62,7 @@ function RegisterForm() {
 
   const submitRegistration = async () => {
     try {
-      await register({ email, username, password, dob });
+      await register({ email, username, password, dob, role });
       router.push('/verify-email');
     } catch {
       setError('An error occurred during registration. Please try again.');
